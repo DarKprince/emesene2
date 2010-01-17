@@ -212,16 +212,14 @@ class Worker(e3.base.Worker, papyon.Client):
             session.reject()
         else:
             session.accept()
-                
+
     def _on_conference_invite(self, call):
         print "New conference invite", call
-        callhandler = CallEvent(call)
         callsess = MediaSessionHandler(call.media_session)
-        print "new call session", callsess
-        if 0:
-            call.reject()            
-        else:
-            call.accept()
+        callhandler = CallEvent(call, self)
+        call.ring()
+        # leave the accept stuff to the call event handler
+        # because codecs aren't ready yet        
 
     def _on_invite_file_transfer(self, papysession):
         print "new ft invite", papysession
@@ -230,6 +228,49 @@ class Worker(e3.base.Worker, papyon.Client):
             papysession.reject()
         else:
             papysession.accept()
+
+    # call handlers
+    def _on_call_incoming(self, papycallevent):
+        """Called once the incoming call is ready."""
+        print "[papyon]", "[call] ready", papycallevent._call.media_session.prepared, papycallevent._call.media_session.ready
+        if papycallevent._call.media_session.prepared:
+            papycallevent._call.accept()
+            print "wut"
+        else:
+            papycallevent._call.ring()
+            print "ring"
+
+    def _on_call_ringing(self, papycallevent):
+        """Called when we received a ringing response from the callee."""
+        print "[papyon]", "[call] ringing"
+
+    def _on_call_accepted(self, papycallevent):
+        """Called when the callee accepted the call."""
+        print "[papyon]", "[call] accepted"
+
+    def _on_call_rejected(self, papycallevent, response):
+        """Called when the callee rejected the call.
+            @param response: response associated with the rejection
+            @type response: L{SIPResponse<papyon.sip.SIPResponse>}"""
+        print "[papyon]", "[call] rejected", response
+
+    def _on_call_error(self, papycallevent, response):
+        """Called when an error is sent by the other party.
+            @param response: response associated with the error
+            @type response: L{SIPResponse<papyon.sip.SIPResponse>}"""
+        print "[papyon]", "[call] err", response
+
+    def _on_call_missed(self, papycallevent):
+        """Called when the call is missed."""
+        print "[papyon]", "[call] missd"
+
+    def _on_call_connected(self, papycallevent):
+        """Called once the call is connected."""
+        print "[papyon]", "[call] connected"
+
+    def _on_call_ended(self, papycallevent):
+        """Called when the call is ended."""
+        print "[papyon]", "[call] ended"
 
     # conversation handlers
     def _on_conversation_user_typing(self, papycontact, pyconvevent):
@@ -579,10 +620,25 @@ class Worker(e3.base.Worker, papyon.Client):
         papycontact = self.address_book.contacts.search_by('account', account)[0]
         self.address_book.unblock_contact(papycontact, failed_cb=block_fail)
 
-    def _handle_action_move_to_group(self, account, src_gid, dest_gid): #TODO: finish this
+    def _handle_action_move_to_group(self, account, src_gid, dest_gid):
         '''handle Action.ACTION_MOVE_TO_GROUP '''
-        self.session.add_event(Event.EVENT_CONTACT_MOVE_SUCCEED,
-            account, src_gid, dest_gid)
+        def move_to_group_fail(*args):
+            print "move to group fail",args
+            self.session.add_event(e3.Event.EVENT_CONTACT_MOVE_FAILED, '') #account
+        def add_to_group_succeed(*args):
+            #delete from old group only if previuos contact-add succeed..
+            #TODO but if this fails?i've to remove the contact in the new group previosly added?
+            self.address_book.delete_contact_from_group(papygroupsrc, papycontact,
+            done_cb=move_to_group_succeed, failed_cb=move_to_group_fail)
+        def move_to_group_succeed(*args):
+           print "move to group succeed",args
+           self.session.add_event(Event.EVENT_CONTACT_MOVE_SUCCEED,
+           account, src_gid, dest_gid)
+        papycontact = self.address_book.contacts.search_by('account', account)[0]
+        papygroupsrc = self.address_book.groups.search_by('name', self.session.groups[src_gid].name)
+        papygroupdest = self.address_book.groups.search_by('name', self.session.groups[dest_gid].name)
+        self.address_book.add_contact_to_group(papygroupdest, papycontact,done_cb=add_to_group_succeed, 
+                                                 failed_cb=move_to_group_fail)
 
     def _handle_action_remove_contact(self, account):
         '''handle Action.ACTION_REMOVE_CONTACT '''
@@ -601,30 +657,40 @@ class Worker(e3.base.Worker, papyon.Client):
         # TODO: move to ab callback
         self.session.add_event(Event.EVENT_CONTACT_REJECT_SUCCEED, account)
 
-    def _handle_action_remove_from_group(self, account, gid): #TODO: finish this
+    def _handle_action_remove_from_group(self, account, gid): 
         ''' handle Action.ACTION_REMOVE_FROM_GROUP '''
-        self.session.add_event(Event.EVENT_GROUP_REMOVE_CONTACT_SUCCEED,
-            gid, account)
+        def remove_from_group_fail(*args):
+            print "remove contact from group fail",args
+            self.session.add_event(e3.Event.EVENT_GROUP_REMOVE_CONTACT_FAILED, '') 
+        papycontact = self.address_book.contacts.search_by('account', account)[0]
+        papygroup = self.address_book.groups.search_by('name', self.session.groups[gid].name)
+        self.address_book.delete_contact_from_group(papygroup, papycontact, failed_cb=remove_from_group_fail)
 
-    def _handle_action_remove_group(self, gid): #TODO: finish this
+    def _handle_action_remove_group(self, gid):
         ''' handle Action.ACTION_REMOVE_GROUP '''
         def remove_group_fail(*args):
             print "remove group fail"
-            self.session.add_event(e3.Event.EVENT_GROUP_REMOVE_FAILED, 0) #gid        
+            self.session.add_event(e3.Event.EVENT_GROUP_REMOVE_FAILED, 0) #gid       
         papygroup = self.address_book.groups.search_by('name', self.session.groups[gid].name)
-        self.address_book.delete_group(papygroup)
+        self.address_book.delete_group(papygroup, failed_cb=remove_group_fail)
 
-    def _handle_action_rename_group(self, gid, name): #TODO: finish this
+    def _handle_action_rename_group(self, gid, name): 
         ''' handle Action.ACTION_RENAME_GROUP '''
         def rename_group_fail(*args):
             print "rename group fail"
-            self.session.add_event(e3.Event.EVENT_GROUP_RENAME_FAILED, 0, '') # gid, name        
-        
-        self.address_book.rename_group(name, newname = 'todo')
+            self.session.add_event(e3.Event.EVENT_GROUP_RENAME_FAILED, 0, '') # gid, name      
+        papygroup = self.address_book.groups.search_by('name', self.session.groups[gid].name)
+        self.address_book.rename_group(papygroup, name, failed_cb=rename_group_fail)
 
     def _handle_action_set_contact_alias(self, account, alias): #TODO: finish this
         ''' handle Action.ACTION_SET_CONTACT_ALIAS '''
-        self.session.add_event(Event.EVENT_CONTACT_ALIAS_SUCCEED, account)
+        def set_contact_alias_fail(*args):
+            print "set contact alias fail"
+            self.session.add_event(e3.Event.EVENT_CONTACT_ALIAS_FAILED,'') # account
+        def set_contact_alias_succeed(*args):
+            print "set contact alias succeed"
+            self.session.add_event(e3.Event.EVENT_CONTACT_ALIAS_SUCCEED, account) 
+        
 
     # e3 action handlers - profile
     def _handle_action_change_status(self, status_):
