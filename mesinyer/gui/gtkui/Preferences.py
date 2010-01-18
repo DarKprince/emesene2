@@ -463,8 +463,6 @@ class Graphic(BaseTable):
             self.btnRemove.set_sensitive(False)
 
         self.show_all()
-        w = self.session.config.i_login_width
-        print str(w)
         
     def _on_add_background(self, button):
         '''select background for main window'''
@@ -501,12 +499,9 @@ class Graphic(BaseTable):
 
     def setBackg(self, imageFile):
         '''resize the image and save'''
-        Window = extension.get_default('window frame')
-        window = Window(None) # main window
         pixbuf=gtk.gdk.pixbuf_new_from_file(imageFile)
-
-        print str(width)
-        print str(height)
+        width = self.session.config.i_login_width
+        height = self.session.config.i_login_height
         try:
             img = gtk.gdk.Pixbuf.scale_simple(pixbuf,width,height,gtk.gdk.INTERP_BILINEAR)
             img.save(self.imagePath,"png", {'compression':str(2)})

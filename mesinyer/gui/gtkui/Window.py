@@ -50,14 +50,11 @@ class Window(gtk.Window):
     def drawBackground(self, imagename):
         '''draw the background from file in the personal config folder'''
         try:
-            print imagename
             pixbuf = gtk.gdk.pixbuf_new_from_file(imagename)
             pixmap,mask = pixbuf.render_pixmap_and_mask()
-            width, height = pixmap.get_size()
             del pixbuf
             self.set_app_paintable(True)
             self.realize()
-            #self.resize(width, height)
             self.queue_draw()
             self.window.set_back_pixmap(pixmap, False)
             del pixmap
