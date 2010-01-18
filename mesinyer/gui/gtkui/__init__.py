@@ -65,6 +65,7 @@ def setup():
     extension.category_register('avatar chooser', AvatarChooser.AvatarChooser)
 
     extension.category_register('preferences', Preferences.Preferences)
+    extension.category_register('graphic', Preferences.Graphic)
     extension.category_register('login window', Login.Login)
     extension.category_register('window frame', Window.Window)
     extension.category_register('main window', MainWindow.MainWindow)

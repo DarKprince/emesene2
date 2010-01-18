@@ -437,11 +437,15 @@ class Graphic(BaseTable):
         """
         BaseTable.__init__(self, 9, 1)
         self.session = session
-
+        self.config = e3.common.Config()
         self.config_dir = e3.common.ConfigDir('emesene2')._get_default_base_dir()
+        self.config_path = e3.common.ConfigDir('emesene2').join('config')
         self.account = session.account.account
         self.userFolder = self.config_dir+'/'+self.account
-        
+
+        self.width = ''
+        self.height = ''
+
         self.bk_status = gtk.Label('status of background')
 
         self.add_text('Main Window Background', 0, 0, True)
@@ -459,7 +463,9 @@ class Graphic(BaseTable):
             self.btnRemove.set_sensitive(False)
 
         self.show_all()
-
+        w = self.session.config.i_login_width
+        print str(w)
+        
     def _on_add_background(self, button):
         '''select background for main window'''
         try:
@@ -498,8 +504,9 @@ class Graphic(BaseTable):
         Window = extension.get_default('window frame')
         window = Window(None) # main window
         pixbuf=gtk.gdk.pixbuf_new_from_file(imageFile)
-        width, height = window.get_size()
-        print str(width) +'-'+ str(height)
+
+        print str(width)
+        print str(height)
         try:
             img = gtk.gdk.Pixbuf.scale_simple(pixbuf,width,height,gtk.gdk.INTERP_BILINEAR)
             img.save(self.imagePath,"png", {'compression':str(2)})

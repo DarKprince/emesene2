@@ -103,6 +103,7 @@ class Controller(object):
 
     def _setup(self):
         '''register core extensions'''
+        print 'setup'
         extension.category_register('session', msn.Session,
                 single_instance=True)
         extension.register('session', jabber.Session)
@@ -454,13 +455,13 @@ class Controller(object):
         width = self.config.get_or_set('i_login_width', 250)
         height = self.config.get_or_set('i_login_height', 410)
 
+
         self.window.go_login(self.on_login_connect,
             self.on_preferences_changed, account,
             self.config.d_accounts, self.config.l_remember_account,
             self.config.l_remember_password, self.config.d_status,
             self.config.session, proxy, use_http, self.config.session)
         self.window.set_location(width, height, posx, posy)
-
         self.window.show()
 
     def on_disconnect(self):

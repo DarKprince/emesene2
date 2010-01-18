@@ -57,7 +57,7 @@ class Window(gtk.Window):
             del pixbuf
             self.set_app_paintable(True)
             self.realize()
-            self.resize(width, height)
+            #self.resize(width, height)
             self.queue_draw()
             self.window.set_back_pixmap(pixmap, False)
             del pixmap
