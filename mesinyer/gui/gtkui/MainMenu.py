@@ -270,16 +270,10 @@ class LoginAccountMenu(gtk.Menu):
         gtk.Menu.__init__(self)
         self.handler = handler
 
-        self.account = gtk.ImageMenuItem('_New account')
-        self.account.set_image(gtk.image_new_from_stock(gtk.STOCK_NEW,
-            gtk.ICON_SIZE_MENU))
-        self.account.connect('activate',
-            lambda *args: self.handler.on_new_account_selected())
         self.quit = gtk.ImageMenuItem(gtk.STOCK_QUIT)
         self.quit.connect('activate',
             lambda *args: self.handler.on_quit_selected())
 
-        self.append(self.account)
         self.append(gtk.SeparatorMenuItem())
         self.append(self.quit)
 

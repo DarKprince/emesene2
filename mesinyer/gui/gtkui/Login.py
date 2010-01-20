@@ -513,8 +513,8 @@ class Login(gtk.Alignment):
     def _on_preferences_selected(self, button):
         '''called when the user clicks the preference button'''
         extension.get_default('dialog').login_preferences(self.session_id,
-            self._on_new_preferences, self.use_http, self.proxy)
-
+            self._on_new_preferences, self.use_http, self.proxy, self.cmb_account.get_active_text())
+            
     def _on_new_preferences(self, use_http, use_proxy, host, port,
         use_auth, user, passwd, session_id):
         '''called when the user press accept on the preferences dialog'''

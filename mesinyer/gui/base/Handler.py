@@ -423,9 +423,6 @@ class AccountLoginHandler(object):
         """
         self.on_quit = on_quit
 
-    def on_new_account_selected(self):
-       webbrowser.open('https://accountservices.passport.net/reg.srf?sl=1')
-
     def on_quit_selected(self):
         '''called when quit is clicked'''
         if self.on_quit:
