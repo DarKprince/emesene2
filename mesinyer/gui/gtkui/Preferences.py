@@ -491,6 +491,7 @@ class Graphic(BaseTable):
 
             os.remove(self.imagePath)
             window.set_app_paintable(False)
+            window.queue_draw()
             self.btnAdd.set_label(_("Select a background image"))
             self.bk_status.set_text(_("At moment you don't have a custom background"))
             self.btnRemove.set_sensitive(False)
