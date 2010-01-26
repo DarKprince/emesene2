@@ -1,8 +1,10 @@
 import gtk
+import os
 
 import gui
 import utils
 import extension
+import e3
 
 import logging
 log = logging.getLogger('gtkui.Preferences')
@@ -13,6 +15,8 @@ LIST = [
     {'stock_id' : gtk.STOCK_LEAVE_FULLSCREEN,'text' : _('Notifications')},
     {'stock_id' : gtk.STOCK_SELECT_COLOR,'text' : _('Theme')},
     {'stock_id' : gtk.STOCK_DISCONNECT,'text' : _('Extensions')},
+    {'stock_id' : gtk.STOCK_PAGE_SETUP,'text' : _('Graphic')},
+
 ]
 
 class Preferences(gtk.Window):
@@ -82,6 +86,7 @@ class Preferences(gtk.Window):
         self.notification = Notification(session)
         self.theme = Theme(session)
         self.extension = Extension(session)
+        self.graphic = Graphic(session)
 
         self.buttons = gtk.HButtonBox()
         self.buttons.set_border_width(2)
@@ -99,6 +104,7 @@ class Preferences(gtk.Window):
         self.notifications_page = self.notification
         self.theme_page = self.theme
         self.extensions_page = self.extension
+        self.graphic_page = self.graphic
 
         # Whack the pages into a dict for future reference
 
@@ -107,6 +113,7 @@ class Preferences(gtk.Window):
         self.page_dict.append(self.notifications_page)
         self.page_dict.append(self.theme_page)
         self.page_dict.append(self.extensions_page)
+        self.page_dict.append(self.graphic_page)
 
         for i in range(len(self.page_dict)):
            self.notebook.append_page(self.page_dict[i])
@@ -161,6 +168,7 @@ class BaseTable(gtk.Table):
         button.connect('clicked', on_click)
         self.attach(button, column, column + 1, row, row + 1, xoptions,
                 yoptions)
+        return button
 
     def append_row(self, widget, row=None):
         """append a row to the table
@@ -337,6 +345,9 @@ class Interface(BaseTable):
         """
         BaseTable.__init__(self, 4, 1)
         self.session = session
+        tabs = gtk.Notebook()
+        #Page 1
+        vBox1 = gtk.VBox()
         self.session.config.get_or_set('b_avatar_on_left', False)
         self.append_check('Show emoticons', 'session.config.b_show_emoticons')
         self.append_check('Show conversation header',
@@ -417,6 +428,95 @@ class Theme(BaseTable):
                 'session.config.nick_template', ContactList.NICK_TPL)
         self.append_entry_default('Group format',
                 'session.config.group_template', ContactList.GROUP_TPL)
+
+class Graphic(BaseTable):
+    '''the panel to display/modify the config related to graphic interface '''
+
+    def __init__(self, session):
+        """constructor
+        """
+        BaseTable.__init__(self, 9, 1)
+        self.session = session
+        self.config = e3.common.Config()
+        self.config_dir = e3.common.ConfigDir('emesene2')._get_default_base_dir()
+        self.config_path = e3.common.ConfigDir('emesene2').join('config')
+        self.account = session.account.account
+        self.userFolder = self.config_dir+'/'+self.account
+
+        self.width = ''
+        self.height = ''
+
+        self.bk_status = gtk.Label('status of background')
+
+        self.add_text('Main Window Background', 0, 0, True)
+        self.add_label(self.bk_status, 1, 0, True)
+        self.btnAdd = self.add_button('',  0, 1, self._on_add_background, 0, 0)
+        self.btnRemove = self.add_button('Remove Background', 1, 1, self._on_remove_background, 0, 0)
+        
+        self.imagePath = self.userFolder+'/MainBackground.png'
+        if os.path.isfile(self.imagePath):
+            self.btnAdd.set_label(_("Change the background image"))
+            self.bk_status.set_text(_("At moment you already have a custom background"))
+        else:
+            self.btnAdd.set_label(_("Select a background image"))
+            self.bk_status.set_text(_("At moment you don't have a custom background"))
+            self.btnRemove.set_sensitive(False)
+
+        self.show_all()
+        
+    def _on_add_background(self, button):
+        '''select background for main window'''
+        try:
+            dialog = gtk.FileChooserDialog("Open..",
+                                   None,
+                                   gtk.FILE_CHOOSER_ACTION_OPEN,
+                                   (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                    gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+            dialog.set_default_response(gtk.RESPONSE_OK)
+            response = dialog.run() #response of the file chooser
+            if response == gtk.RESPONSE_OK: #if ok then load the image
+                imageFile = dialog.get_filename()
+                self.setBackg(imageFile)
+                dialog.destroy()
+            elif response == gtk.RESPONSE_CANCEL:
+                dialog.destroy()#else destroy dialog
+        except Exception, e:
+            print e
+
+    def _on_remove_background(self, button):
+        '''delete background for main window'''
+        try:
+            Window = extension.get_default('window frame')
+            window = Window(None) # main window
+
+            os.remove(self.imagePath)
+            window.set_app_paintable(False)
+            window.queue_draw()
+            self.btnAdd.set_label(_("Select a background image"))
+            self.bk_status.set_text(_("At moment you don't have a custom background"))
+            self.btnRemove.set_sensitive(False)
+        except Exception, e:
+            print 'Error while removing file..'+str(e)
+
+    def setBackg(self, imageFile):
+        '''resize the image and save'''
+        pixbuf=gtk.gdk.pixbuf_new_from_file(imageFile)
+        width = self.session.config.i_login_width
+        height = self.session.config.i_login_height
+        try:
+            img = gtk.gdk.Pixbuf.scale_simple(pixbuf,width,height,gtk.gdk.INTERP_BILINEAR)
+            img.save(self.imagePath,"png", {'compression':str(2)})
+        except Exception, e:
+            print '[setBackg]failed to save:'+str(e)
+        self.changeBackg()
+
+    def changeBackg(self):
+        Window = extension.get_default('window frame')
+        window = Window(None) # main window
+        self.btnAdd.set_label(_("Change the background image"))
+        self.bk_status.set_text(_("At moment you already have a custom background"))
+        self.btnRemove.set_sensitive(True)
+        window.drawBackground(self.imagePath)
 
 class Extension(BaseTable):
     """the panel to display/modify the config related to the extensions

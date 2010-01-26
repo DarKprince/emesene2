@@ -1,6 +1,8 @@
 import sys
 import gtk
+import os
 
+import e3
 import gui
 import utils
 import extension
@@ -31,6 +33,8 @@ class Window(gtk.Window):
 
         self.content_type = 'empty'
 
+        self.config_dir = e3.common.ConfigDir('emesene2')._get_default_base_dir()
+        
     def set_icon(self, icon):
         '''set the icon of the window'''
         if utils.file_readable(icon):
@@ -43,27 +47,43 @@ class Window(gtk.Window):
             self.remove(self.get_child())
             self.content = None
 
+    def drawBackground(self, imagename):
+        '''draw the background from file in the personal config folder'''
+        try:
+            pixbuf = gtk.gdk.pixbuf_new_from_file(imagename)
+            pixmap,mask = pixbuf.render_pixmap_and_mask()
+            del pixbuf
+            self.set_app_paintable(True)
+            self.realize()
+            self.queue_draw()
+            self.window.set_back_pixmap(pixmap, False)
+            del pixmap
+        except Exception, e:
+             print 'Error when applying background: ' + str(e)
+
+    def userBackground(self, combobox):
+	'''select the background choosen for different accounts '''
+        try:
+            imagename = self.config_dir+'/'+combobox.get_active_text()+'/MainBackground.png'
+            if os.path.isfile(imagename):
+                self.drawBackground(imagename)
+            else:
+                self.set_app_paintable(False)
+        except Exception, e:
+             print e
+
     def go_login(self, callback,on_preferences_changed,
-           config=None, config_dir=None, config_path=None, 
-           proxy=None, use_http=None, session_id=None, on_disconnect=False):
+           config=None, config_dir=None, config_path=None, proxy=None, 
+           use_http=False, session_id=None,on_disconnect=False):
         '''draw the login window on the main window'''
         LoginWindow = extension.get_default('login window')
 
         self.content = LoginWindow(callback, on_preferences_changed,
-            config, config_dir, config_path, proxy, use_http,
-            session_id, on_disconnect)
+            config, config_dir, config_path, proxy, use_http, session_id,on_disconnect)
         self.add(self.content)
         self.content.show()
         self.content_type = 'login'
-
-    def go_connect(self, callback):
-        '''draw the login window on the main window'''
-        ConnectingWindow = extension.get_default('connecting window')
-
-        self.content = ConnectingWindow(callback)
-        self.add(self.content)
-        self.content.show()
-        self.content_type = 'connecting'
+        self.content.cmb_account.connect('changed', self.userBackground)
 
     def go_main(self, session, on_new_conversation,
             on_close, on_disconnect):
