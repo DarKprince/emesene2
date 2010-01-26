@@ -91,9 +91,6 @@ class Controller(object):
         self.config_path = self.config_dir.join('config')
         self.config.load(self.config_path)
 
-        if self.config.d_status is None:
-            self.config.d_status = {}
-
         if self.config.d_accounts is None:
             self.config.d_accounts = {}
 
@@ -217,12 +214,11 @@ class Controller(object):
             self.session.quit()
 
         self.save_extensions_config()
+        self._save_login_dimensions()
 
         if self.session is not None:
             self.session.save_config()
             self.session = None
-        else:
-            self._save_login_dimensions()
 
         self.config.save(self.config_path)
 
@@ -274,11 +270,12 @@ class Controller(object):
 
     def on_login_failed(self, reason):
         '''callback called on login failed'''
+        self._save_login_dimensions()
         self._remove_subscriptons()
         self._new_session()
-        dialog = extension.get_default('dialog')
-        dialog.error(reason)
-        self.window.content.set_sensitive(True)
+        self.go_login(True)
+        self.window.content.clear_all()
+        self.window.content.show_error(reason)
 
     def on_contact_list_ready(self):
         '''callback called when the contact list is ready to be used'''
@@ -314,6 +311,12 @@ class Controller(object):
     def on_login_connect(self, account, session_id, proxy, use_http):
         '''called when the user press the connect button'''
         self.on_preferences_changed(use_http, proxy, session_id)
+        self._save_login_dimensions()
+
+        self.window.clear()
+        self.window.go_connect(self.on_cancel_login)
+        self._set_location(self.window)
+        self.window.show()
 
         self._new_session()
         self.session.config.get_or_set('b_play_send', True)
@@ -341,13 +344,8 @@ class Controller(object):
             Window = extension.get_default('window frame')
             window = Window(self._on_conversation_window_close)
 
-            posx = self.session.config.get_or_set('i_conv_posx', 100)
-            posy = self.session.config.get_or_set('i_conv_posy', 100)
-            width = self.session.config.get_or_set('i_conv_width', 600)
-            height = self.session.config.get_or_set('i_conv_height', 400)
-
             window.go_conversation(self.session)
-            window.set_location(width, height, posx, posy)
+            self._set_location(window, True)
             self.conversations = window.content
             window.show()
 
@@ -409,18 +407,34 @@ class Controller(object):
 
         proxy = self._get_proxy_settings()
         use_http = self.config.get_or_set('b_use_http', False)
+        account = self.config.get_or_set('last_logged_account', '')
+        
+        #autologin
+        if account != '' and int(self.config.d_remembers[account]) == 3 \
+            and not on_disconnect:
+            password = base64.b64decode(self.config.d_accounts[account])
+            user = e3.Account(account, password,
+                              int(self.config.d_status[account]))
+            self.on_login_connect(user, self.config.session, proxy, use_http)
+        else:
+            self.go_login(on_disconnect, proxy, use_http)
 
-        posx = self.config.get_or_set('i_login_posx', 100)
-        posy = self.config.get_or_set('i_login_posy', 100)
-        width = self.config.get_or_set('i_login_width', 250)
-        height = self.config.get_or_set('i_login_height', 410)
+    def go_login(self, on_disconnect=False, proxy=None, use_http=None):
+        '''start the login GUI'''
+        if proxy is None:
+            proxy = self._get_proxy_settings()
+        if use_http is None:
+            use_http = self.config.get_or_set('b_use_http', False)
 
-        self.window.go_login(self.on_login_connect, self.on_cancel_login,
+        if self.window.content_type != 'empty':
+            self.window.clear()
+
+        self.window.go_login(self.on_login_connect,
             self.on_preferences_changed,self.config,
             self.config_dir, self.config_path, proxy,
-            use_http, self.config.session,on_disconnect)
-        self.window.set_location(width, height, posx, posy)
-
+            use_http, self.config.session, on_disconnect)
+        self.tray_icon.set_login()
+        self._set_location(self.window)
         self.window.show()
 
     def on_disconnect(self):
@@ -429,16 +443,31 @@ class Controller(object):
         '''
         self.close_session(False)
         self.start(on_disconnect=True)
-
+    
     def on_cancel_login(self):
         '''
         method called when user select cancel login
         '''
         if self.session is not None:
             self.session.quit()
-        self.window.content.set_sensitive(True)
+        self._save_login_dimensions()
+        self.go_login(True)
 
+    def _set_location(self, window, is_conv=False):
+        '''get and set the location of the window'''
+        if is_conv:
+            posx = self.session.config.get_or_set('i_conv_posx', 100)
+            posy = self.session.config.get_or_set('i_conv_posy', 100)
+            width = self.session.config.get_or_set('i_conv_width', 600)
+            height = self.session.config.get_or_set('i_conv_height', 400)
+        else:
+            posx = self.config.get_or_set('i_login_posx', 100)
+            posy = self.config.get_or_set('i_login_posy', 100)
+            width = self.config.get_or_set('i_login_width', 250)
+            height = self.config.get_or_set('i_login_height', 410)
 
+        window.set_location(width, height, posx, posy)
+        
 class ExtensionDefault(object):
 
     def __init__(self):

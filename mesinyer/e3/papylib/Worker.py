@@ -59,7 +59,10 @@ except Exception, e:
 
 from PapyEvents import *
 from PapyConvert import *
-from PapyConference import *
+try:
+    from PapyConference import *
+except Exception, e:
+    log.exception("You need gstreamer to use the webcam support")
 
 class Worker(e3.base.Worker, papyon.Client):
     ''' papylib's worker - an emesene extension for papyon library '''
@@ -160,7 +163,7 @@ class Worker(e3.base.Worker, papyon.Client):
     def _remove_contact(self, papycontact):
         ''' removes a contact from the list (gui) '''
         if papycontact.account in self.session.contacts.contacts:
-                del self.session.contacts.contacts[papycontact.account]
+            del self.session.contacts.contacts[papycontact.account]
    
     def _add_group(self, papygroup):
         ''' method to add a group to the (gui) contact list '''
@@ -183,7 +186,7 @@ class Worker(e3.base.Worker, papyon.Client):
             self.session.groups[papygroup.id].contacts.remove(papycontact.account)
 
         if papygroup.id in self.session.contacts.contacts[papycontact.account].groups:
-                self.session.contacts.contacts[papycontact.account].groups\
+            self.session.contacts.contacts[papycontact.account].groups\
                     .remove(papygroup.id)
     
     def _rename_group(self, papygroup):
@@ -506,6 +509,7 @@ class Worker(e3.base.Worker, papyon.Client):
     def _on_profile_presence_changed(self):
         """Called when the presence changes."""
         stat = STATUS_PAPY_TO_E3[self.profile.presence]
+        self.session.account.status = stat
         # log the status
         contact = self.session.contacts.me
         account = Logger.Account(contact.attrs.get('CID', None), None,
@@ -712,7 +716,7 @@ class Worker(e3.base.Worker, papyon.Client):
             # like dp roaming and stuff like that
             # now it doesn't work, btw
             self.profile.msn_object = picture_name
-            self._on_contact_msnobject_changed(self.session.contacts.me)
+            self._on_contact_msnobject_changed(self.profile)
             #self.session.contacts.me.picture = picture_name
             #self.session.add_event(e3.Event.EVENT_PICTURE_CHANGE_SUCCEED,
             #    self.session.account.account, picture_name)

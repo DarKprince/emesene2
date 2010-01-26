@@ -66,6 +66,7 @@ def setup():
 
     extension.category_register('preferences', Preferences.Preferences)
     extension.category_register('login window', Login.Login)
+    extension.category_register('connecting window', Login.ConnectingWindow)
     extension.category_register('window frame', Window.Window)
     extension.category_register('main window', MainWindow.MainWindow)
     extension.category_register('contact list', ContactList.ContactList)
@@ -86,9 +87,6 @@ def setup():
     extension.category_register('menu account', AccountMenu.AccountMenu)
     extension.category_register('menu help', MainMenu.HelpMenu)
     extension.category_register('menu status', StatusMenu.StatusMenu)
-    extension.category_register('login menu', MainMenu.LoginMenu)
-    extension.category_register('menu accountlogin', MainMenu.LoginAccountMenu)
-    extension.category_register('menu preferenceslogin', MainMenu.LoginPreferencesMenu)
 
     extension.category_register('below menu', EmptyWidget.EmptyWidget)
     extension.category_register('below panel', EmptyWidget.EmptyWidget)

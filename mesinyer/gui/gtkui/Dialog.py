@@ -21,7 +21,6 @@
 import traceback
 
 import gtk
-import os
 import pango
 import gobject
 
@@ -636,7 +635,7 @@ class Dialog(object):
         InviteWindow(session, callback).show()
 
     @classmethod
-    def login_preferences(cls, session, callback, use_http, proxy, account):
+    def login_preferences(cls, session, callback, use_http, proxy):
         """
         display the preferences dialog for the login window
 
@@ -648,17 +647,8 @@ class Dialog(object):
             method
         proxy -- a e3.Proxy object
         """
-        config = e3.common.Config()
-        config_dir = e3.common.ConfigDir('emesene2')._get_default_base_dir()
-        config_path = e3.common.ConfigDir('emesene2').join('config')
-        config.load(config_path)
 
-        userFolder = config_dir+'/'+account
-        
-        notebook = gtk.Notebook()
-        #general page
         content = gtk.VBox()
-        lblContent = gtk.Label("General")
         box = gtk.Table(9, 2)
 
         combo = gtk.combo_box_new_text()
@@ -750,117 +740,17 @@ class Dialog(object):
 
             window.hide()
 
-        def resp(response):
-            if response == stock.ACCEPT:
-                print 'ook'
-            window.hide()
-
         def button_cb(button, window, response_cb, response):
             '''called when a button is pressedm get the response id and call
             the response_cb that will handle the event according to the
             response'''
             response_cb(response)
 
-        def _on_add_background(button):
-            '''select background for main window'''
-            try:
-                dialog = gtk.FileChooserDialog("Open..",
-                                       None,
-                                       gtk.FILE_CHOOSER_ACTION_OPEN,
-                                       (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
-                                        gtk.STOCK_OPEN, gtk.RESPONSE_OK))
-                dialog.set_default_response(gtk.RESPONSE_OK)
-                response = dialog.run() #response of the file chooser
-                if response == gtk.RESPONSE_OK: #if ok then load the image
-                    imageFile = dialog.get_filename()
-                    pixbuf=gtk.gdk.pixbuf_new_from_file(imageFile)
-                    width = config.i_login_width
-                    height = config.i_login_height
-                    try:
-                        img = gtk.gdk.Pixbuf.scale_simple(pixbuf,width,height,gtk.gdk.INTERP_BILINEAR)
-                        img.save(imagePath,"png", {'compression':str(2)})
-                        baseTable.btnAdd.set_label(_("Change the background image"))
-                        baseTable.bk_status.set_text(_("At moment you already have a custom background"))
-                        baseTable.btnRemove.set_sensitive(True)
-                    except Exception, e:
-                        print '[setBackg]failed to save:'+str(e)
-                    dialog.destroy()
-                elif response == gtk.RESPONSE_CANCEL:
-                    dialog.destroy()#else destroy dialog
-            except Exception, e:
-                print e
-
-        def _on_remove_background(button):
-            '''delete background for main window'''
-            try:
-                os.remove(imagePath)
-                baseTable.btnAdd.set_label(_("Select a background image"))
-                baseTable.bk_status.set_text(_("At moment you don't have a custom background"))
-                baseTable.btnRemove.set_sensitive(False)
-            except Exception, e:
-                print 'Error while removing file..'+str(e)
-
-        def _add_text(table, text, column, row, align_left=False, line_wrap=True):
-            """add a label with thext to row and column, align the text left if
-            align_left is True
-            """
-            label = gtk.Label(text)
-            _add_label(table, label, column, row, align_left)
-
-        def _add_label(table, label, column, row, align_left=False, line_wrap=True):
-            """add a label with thext to row and column, align the text left if
-            align_left is True
-            """
-            if align_left:
-                label.set_alignment(0.0, 0.5)
-
-            label.set_line_wrap(line_wrap)
-            table.attach(label, column, column + 1, row, row + 1)
-
-        def _add_button(table, text, column, row, on_click, xoptions=gtk.EXPAND|gtk.FILL, yoptions=gtk.EXPAND|gtk.FILL):
-            """add a button with text to the row and column, connect the clicked
-            event to on_click"""
-            button = gtk.Button(text)
-            button.connect('clicked', on_click)
-            table.attach(button, column, column + 1, row, row + 1, xoptions,
-                    yoptions)
-            return button
-        
-        content.pack_start(box, True, True)
-        notebook.append_page(content, lblContent)
-
-        #customize page
-        baseTable = gtk.Table(9,1)
-        baseTable.set_row_spacings(4)
-        baseTable.set_col_spacings(4)
-
-        customize = gtk.VBox()
-        lblCustomize = gtk.Label('Customization')
-        baseTable.bk_status = gtk.Label('status of background')
-
-        _add_text(baseTable,'Main Window Background', 0, 0, True)
-        _add_label(baseTable,baseTable.bk_status, 0, 1, True)
-        baseTable.btnAdd = _add_button(baseTable,'',  0, 5, _on_add_background, 0, 0)
-        baseTable.btnRemove = _add_button(baseTable,'Remove Background', 1, 5, _on_remove_background, 0, 0)
-
-        imagePath = userFolder+'/MainBackground.png'
-        if os.path.isfile(imagePath):
-            baseTable.btnAdd.set_label(_("Change the background image"))
-            baseTable.bk_status.set_text(_("At moment you already have a custom background"))
-        else:
-            baseTable.btnAdd.set_label(_("Select a background image"))
-            baseTable.bk_status.set_text(_("At moment you don't have a custom background"))
-            baseTable.btnRemove.set_sensitive(False)
-
-        customize.pack_start(baseTable, False)
-        notebook.append_page(customize, lblCustomize)
-
-        #pack all
         window = cls.new_window('Preferences', response_cb)
-        window.resize(300,200)
-        window.hbox.pack_start(notebook, True, True)
         window.set_modal(True)
-        
+        window.hbox.pack_start(content, True, True)
+        content.pack_start(box, True, True)
+
         cls.add_button(window, gtk.STOCK_CANCEL, stock.CANCEL, response_cb,
                 button_cb)
         cls.add_button(window, gtk.STOCK_OK, stock.ACCEPT, response_cb,
